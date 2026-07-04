@@ -1,11 +1,11 @@
 # Meaco Stock Monitor
 
-Checks two Meaco portable air conditioners every five minutes and sends a Telegram message whenever either one can be purchased:
+Checks two Meaco portable air conditioners every two minutes and sends a Telegram message whenever either one can be purchased:
 
 - [Meaco Cirro 12000 BTU Air Conditioner & Heater](https://www.meaco.com/products/meaco-cirro-12000-btu-super-quiet-smart-portable-air-conditioner-heater)
 - [Meaco Cirro 12000 BTU Air Conditioner](https://www.meaco.com/products/meaco-cirro-12000-btu-super-quiet-smart-portable-air-conditioner)
 
-The monitor is designed to run on AWS Lambda, triggered every five minutes by
+The monitor is designed to run on AWS Lambda, triggered every two minutes by
 EventBridge Scheduler. It uses only Python's standard library.
 
 ## How detection works
@@ -17,7 +17,7 @@ Meaco is a Shopify store. The monitor reads each product's public `.js` endpoint
 
 This is the structured data behind the purchase UI, so no browser automation or screenshot comparison is needed.
 
-When stock is available, one message lists every available monitored product with its current GBP price and direct purchase link. The workflow intentionally sends another alert on every five-minute run while stock remains available. It does not store history or deduplicate messages.
+When stock is available, one message lists every available monitored product with its current GBP price and direct purchase link. The monitor intentionally sends another alert on every two-minute run while stock remains available. It does not store history or deduplicate messages.
 
 ## Telegram setup
 
@@ -62,7 +62,7 @@ sam deploy \
 unset TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID
 ```
 
-The template uses `rate(5 minutes)` and disables EventBridge Scheduler's flexible
+The template uses `rate(2 minutes)` and disables EventBridge Scheduler's flexible
 delivery window. To change the interval, pass `ScheduleExpression` as an additional
 parameter override. The Telegram values are stored as encrypted Lambda environment
 variables and are not committed to the repository.

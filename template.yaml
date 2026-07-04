@@ -13,7 +13,7 @@ Parameters:
     Description: Telegram chat ID that receives stock alerts
   ScheduleExpression:
     Type: String
-    Default: rate(5 minutes)
+    Default: rate(2 minutes)
     Description: EventBridge Scheduler rate or cron expression
 
 Resources:
@@ -38,7 +38,7 @@ Resources:
         StockCheck:
           Type: ScheduleV2
           Properties:
-            Description: Check Meaco stock every five minutes
+            Description: Check Meaco stock every two minutes
             ScheduleExpression: !Ref ScheduleExpression
             FlexibleTimeWindow:
               Mode: "OFF"
