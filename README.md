@@ -78,6 +78,17 @@ aws lambda invoke --function-name "$FUNCTION_NAME" /tmp/aircon-result.json
 aws logs tail "/aws/lambda/${FUNCTION_NAME}" --since 10m
 ```
 
+To verify Telegram delivery without waiting for real stock, invoke the explicit test
+event. It sends one clearly labelled test notification and does not run a stock check:
+
+```sh
+aws lambda invoke \
+  --function-name "$FUNCTION_NAME" \
+  --cli-binary-format raw-in-base64-out \
+  --payload '{"test_notification":true}' \
+  /tmp/aircon-test-result.json
+```
+
 ## Local use
 
 Python 3.10 or newer is required. No packages need to be installed.

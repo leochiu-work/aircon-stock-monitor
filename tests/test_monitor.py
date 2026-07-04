@@ -235,6 +235,26 @@ class MonitorTests(unittest.TestCase):
         with self.assertRaisesRegex(monitor.MonitorError, "monitor cycle failed"):
             monitor.lambda_handler({}, None)
 
+    @patch("monitor.send_telegram_message")
+    @patch("monitor.load_telegram_credentials")
+    @patch("monitor.run_monitor")
+    def test_lambda_handler_sends_test_notification(
+        self,
+        run_monitor,
+        load_credentials,
+        send_message,
+    ) -> None:
+        load_credentials.return_value = self.credentials
+
+        result = monitor.lambda_handler({"test_notification": True}, None)
+
+        self.assertEqual(result, {"status": "test notification sent"})
+        send_message.assert_called_once_with(
+            self.credentials,
+            monitor.TEST_NOTIFICATION_MESSAGE,
+        )
+        run_monitor.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

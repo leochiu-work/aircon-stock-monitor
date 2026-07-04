@@ -20,6 +20,7 @@ from urllib.request import Request, urlopen
 REQUEST_TIMEOUT_SECONDS = 15.0
 REQUEST_ATTEMPTS = 3
 USER_AGENT = "aircon-stock-monitor/1.0"
+TEST_NOTIFICATION_MESSAGE = "✅ Test notification: Meaco stock monitor is connected."
 
 
 @dataclass(frozen=True)
@@ -327,8 +328,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     return run_monitor(dry_run=args.dry_run)
 
 
-def lambda_handler(_event: Mapping[str, Any], _context: Any) -> dict[str, str]:
+def lambda_handler(event: Mapping[str, Any], _context: Any) -> dict[str, str]:
     """Run one cycle from AWS Lambda and surface failures to CloudWatch."""
+
+    if event.get("test_notification") is True:
+        credentials = load_telegram_credentials()
+        send_telegram_message(credentials, TEST_NOTIFICATION_MESSAGE)
+        print("Telegram test notification sent.")
+        return {"status": "test notification sent"}
 
     exit_code = run_monitor()
     if exit_code != 0:
