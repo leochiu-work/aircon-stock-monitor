@@ -327,5 +327,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     return run_monitor(dry_run=args.dry_run)
 
 
+def lambda_handler(_event: Mapping[str, Any], _context: Any) -> dict[str, str]:
+    """Run one cycle from AWS Lambda and surface failures to CloudWatch."""
+
+    exit_code = run_monitor()
+    if exit_code != 0:
+        raise MonitorError("monitor cycle failed; see the preceding log messages")
+    return {"status": "ok"}
+
+
 if __name__ == "__main__":
     raise SystemExit(main())

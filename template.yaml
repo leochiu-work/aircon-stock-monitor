@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Meaco stock monitor on AWS Lambda and EventBridge Scheduler
+
+Parameters:
+  TelegramBotToken:
+    Type: String
+    NoEcho: true
+    Description: Telegram bot token used to deliver stock alerts
+  TelegramChatId:
+    Type: String
+    NoEcho: true
+    Description: Telegram chat ID that receives stock alerts
+  ScheduleExpression:
+    Type: String
+    Default: rate(5 minutes)
+    Description: EventBridge Scheduler rate or cron expression
+
+Resources:
+  StockMonitorFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      Description: Checks Meaco stock and sends Telegram alerts
+      CodeUri: .
+      Handler: monitor.lambda_handler
+      Runtime: python3.13
+      Architectures:
+        - arm64
+      MemorySize: 128
+      Timeout: 120
+      Environment:
+        Variables:
+          TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
+          TELEGRAM_CHAT_ID: !Ref TelegramChatId
+      Events:
+        StockCheck:
+          Type: ScheduleV2
+          Properties:
+            Description: Check Meaco stock every five minutes
+            ScheduleExpression: !Ref ScheduleExpression
+            FlexibleTimeWindow:
+              Mode: "OFF"
+            RetryPolicy:
+              MaximumEventAgeInSeconds: 300
+              MaximumRetryAttempts: 2
+
+Outputs:
+  FunctionName:
+    Description: Deployed Lambda function name
+    Value: !Ref StockMonitorFunction
+  ScheduleName:
+    Description: EventBridge Scheduler schedule name
+    Value: !Ref StockMonitorFunctionStockCheck

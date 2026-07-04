@@ -225,6 +225,16 @@ class MonitorTests(unittest.TestCase):
         self.assertIn("TELEGRAM_BOT_TOKEN", stderr.getvalue())
         self.assertIn("TELEGRAM_CHAT_ID", stderr.getvalue())
 
+    @patch("monitor.run_monitor", return_value=0)
+    def test_lambda_handler_returns_success(self, run_monitor) -> None:
+        self.assertEqual(monitor.lambda_handler({}, None), {"status": "ok"})
+        run_monitor.assert_called_once_with()
+
+    @patch("monitor.run_monitor", return_value=1)
+    def test_lambda_handler_raises_on_monitor_failure(self, _run_monitor) -> None:
+        with self.assertRaisesRegex(monitor.MonitorError, "monitor cycle failed"):
+            monitor.lambda_handler({}, None)
+
 
 if __name__ == "__main__":
     unittest.main()

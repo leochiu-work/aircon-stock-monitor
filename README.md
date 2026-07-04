@@ -5,7 +5,8 @@ Checks two Meaco portable air conditioners every five minutes and sends a Telegr
 - [Meaco Cirro 12000 BTU Air Conditioner & Heater](https://www.meaco.com/products/meaco-cirro-12000-btu-super-quiet-smart-portable-air-conditioner-heater)
 - [Meaco Cirro 12000 BTU Air Conditioner](https://www.meaco.com/products/meaco-cirro-12000-btu-super-quiet-smart-portable-air-conditioner)
 
-The monitor is designed to run on GitHub Actions and uses only Python's standard library.
+The monitor is designed to run on AWS Lambda, triggered every five minutes by
+EventBridge Scheduler. It uses only Python's standard library.
 
 ## How detection works
 
@@ -41,23 +42,41 @@ When stock is available, one message lists every available monitored product wit
    unset TELEGRAM_BOT_TOKEN
    ```
 
-## GitHub setup
+## AWS deployment
 
-Push this repository to GitHub, then add these repository Actions secrets under **Settings → Secrets and variables → Actions**:
-
-- `TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_CHAT_ID`
-
-With the [GitHub CLI](https://cli.github.com/), both commands prompt securely for the values:
+The deployment uses AWS SAM. AWS CLI credentials and the SAM CLI must be configured
+locally. Deploy with:
 
 ```sh
-gh secret set TELEGRAM_BOT_TOKEN
-gh secret set TELEGRAM_CHAT_ID
+sam build
+read -r -s "TELEGRAM_BOT_TOKEN?Bot token: "
+echo
+read -r "TELEGRAM_CHAT_ID?Chat ID: "
+sam deploy \
+  --stack-name aircon-stock-monitor \
+  --resolve-s3 \
+  --capabilities CAPABILITY_IAM \
+  --parameter-overrides \
+    "TelegramBotToken=${TELEGRAM_BOT_TOKEN}" \
+    "TelegramChatId=${TELEGRAM_CHAT_ID}"
+unset TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID
 ```
 
-The workflow in `.github/workflows/monitor.yml` runs after it is committed to the repository's default branch. To test it immediately, open **Actions → Monitor Meaco stock → Run workflow**.
+The template uses `rate(5 minutes)` and disables EventBridge Scheduler's flexible
+delivery window. To change the interval, pass `ScheduleExpression` as an additional
+parameter override. The Telegram values are stored as encrypted Lambda environment
+variables and are not committed to the repository.
 
-GitHub supports five minutes as the shortest scheduled-workflow interval. Scheduled jobs can be delayed during periods of high Actions load, so this is not a hard real-time guarantee. See [GitHub's scheduled workflow documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onschedule).
+After deployment, invoke one immediate check and inspect its logs:
+
+```sh
+FUNCTION_NAME=$(aws cloudformation describe-stacks \
+  --stack-name aircon-stock-monitor \
+  --query 'Stacks[0].Outputs[?OutputKey==`FunctionName`].OutputValue' \
+  --output text)
+aws lambda invoke --function-name "$FUNCTION_NAME" /tmp/aircon-result.json
+aws logs tail "/aws/lambda/${FUNCTION_NAME}" --since 10m
+```
 
 ## Local use
 
@@ -87,10 +106,9 @@ Normal runs validate both environment variables before checking Meaco. A run exi
 
 ## Troubleshooting
 
-- **Missing environment variable:** Confirm both GitHub secret names exactly match the names above. Secret values are not available to workflows triggered from untrusted forks.
+- **Missing environment variable:** Confirm the deployed Lambda function has both `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` configured.
 - **Telegram says `chat not found`:** Send the bot a private message first, then retrieve the chat ID again. For a group, add the bot to that group and use the group's chat ID.
 - **Telegram says `bot was blocked by the user`:** Unblock the bot and send it a message.
-- **Meaco checks fail after three attempts:** Open the product normally and inspect the Actions log. A temporary network or Meaco outage should resolve on a later scheduled run.
-- **No run appears exactly every five minutes:** GitHub schedules are best-effort and can be delayed. Use the manual workflow trigger to check immediately.
+- **Meaco checks fail after three attempts:** Open the product normally and inspect the CloudWatch log. A temporary network or Meaco outage should resolve on a later scheduled run.
 
 Credentials are read from environment variables and are never written to files or included in monitor error messages.
